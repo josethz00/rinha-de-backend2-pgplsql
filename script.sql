@@ -25,23 +25,27 @@ RETURNS TABLE (
     saldo JSONB,
     ultimas_transacoes JSONB
 ) AS $$
+
 BEGIN
     RETURN QUERY
-    SELECT jsonb_agg(jsonb_build_object(
-        'total', c.balance,
-        'data_extrato', now()::timestamp,
-        'limite', c.limite
-    )), c.transacoes
-    FROM clientes c
-    WHERE c.id = clienteid
-    GROUP BY c.transacoes;
+        SELECT 
+            jsonb_agg(
+                jsonb_build_object(
+                    'total', c.balance,
+                    'data_extrato', now()::timestamp,
+                    'limite', c.limite
+                )
+            ), c.transacoes
+        FROM clientes c
+        WHERE c.id = clienteid
+        GROUP BY c.transacoes;
 
-    IF NOT FOUND THEN
-        RAISE 
-            sqlstate 'PGRST'
-            USING message = '{"code":"404","message":"Cliente no existe"}', 
-            detail = '{"status":404,"headers":{"X-Powered-By":"josethz00"}}';
-    END IF;
+        IF NOT FOUND THEN
+            RAISE 
+                sqlstate 'PGRST'
+                USING message = '{"code":"404","message":"Cliente no existe"}', 
+                detail = '{"status":404,"headers":{"X-Powered-By":"josethz00"}}';
+        END IF;
 END;
 $$ LANGUAGE plpgsql IMMUTABLE;
 
