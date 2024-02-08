@@ -1,16 +1,16 @@
--- Create the schema
+-- Cria o schema
 CREATE SCHEMA api;
 
--- Set the search path
+-- Seta o schema criado como padrão
 SET search_path TO api;
 
--- Create the role
+-- Cria a role a ser usada por usuários anônimos (API requests)
 CREATE ROLE web_anon NOLOGIN;
 
--- Grant usage on the schema to the role
+-- Dá permissão para a role acessar o schema
 GRANT USAGE ON SCHEMA api TO web_anon;
 
--- Create the table
+-- Cria a tabela
 CREATE UNLOGGED TABLE IF NOT EXISTS clientes (
     id SERIAL PRIMARY KEY,
     nome VARCHAR(256) NOT NULL,
@@ -19,17 +19,22 @@ CREATE UNLOGGED TABLE IF NOT EXISTS clientes (
     transacoes JSONB DEFAULT '[]'::JSONB
 );
 
--- Create or replace the function
+-- Cria a procedure para buscar o extrato do cliente
 CREATE OR REPLACE FUNCTION api.get_extrato_cliente(clienteid INTEGER)
 RETURNS TABLE (
-    limite INTEGER,
-    saldo INTEGER
+    saldo JSONB,
+    ultimas_transacoes JSONB
 ) AS $$
 BEGIN
     RETURN QUERY
-    SELECT c.limite, c.balance
+    SELECT jsonb_agg(jsonb_build_object(
+        'total', c.balance,
+        'data_extrato', now()::timestamp,
+        'limite', c.limite
+    )), c.transacoes
     FROM clientes c
-    WHERE c.id = clienteid;
+    WHERE c.id = clienteid
+    GROUP BY c.transacoes;
 
     IF NOT FOUND THEN
         RAISE 
@@ -40,10 +45,10 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql IMMUTABLE;
 
--- Grant permissions
+-- Permitir que a role web_anon execute operações de leitura na tabela clientes
 GRANT SELECT ON api.clientes TO web_anon;
 
--- Insert initial data
+-- Insert de dados iniciais
 DO $$
 BEGIN
     INSERT INTO clientes (nome, limite)
