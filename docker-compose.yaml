@@ -1,0 +1,62 @@
+version: "3.5"
+
+services:
+  postgrest01: &postgrest
+    image: postgrest/postgrest:latest
+    hostname: postgrest01
+    environment:
+      PGRST_DB_URI: postgres://admin:123@db:5432/rinha
+      PGRST_DB_SCHEMA: api
+      PGRST_DB_ANON_ROLE: "web_anon" # Replace this with your actual anonymous role if you have one
+    depends_on:
+      - db
+    ports:
+      - "8081:3000" # PostgREST runs on port 3000 by default
+    deploy:
+      resources:
+        limits:
+          cpus: "0.6"
+          memory: "200MB"
+
+  postgrest02:
+    <<: *postgrest
+    hostname: postgrest02
+    ports:
+      - "8082:3000"
+
+  nginx:
+    image: nginx:latest
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - postgrest01
+      - postgrest02
+    ports:
+      - "9999:9999"
+    deploy:
+      resources:
+        limits:
+          cpus: "0.17"
+          memory: "10MB"
+
+  db:
+    image: postgres:latest
+    hostname: db
+    environment:
+      - POSTGRES_PASSWORD=123
+      - POSTGRES_USER=admin
+      - POSTGRES_DB=rinha
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./script.sql:/docker-entrypoint-initdb.d/script.sql
+    deploy:
+      resources:
+        limits:
+          cpus: "0.13"
+          memory: "140MB"
+
+networks:
+  default:
+    driver: bridge
+    name: rinha-nginx-2024q1
