@@ -19,6 +19,9 @@ CREATE UNLOGGED TABLE IF NOT EXISTS clientes (
     transacoes JSONB DEFAULT '[]'::JSONB
 );
 
+
+CREATE TYPE TIPO_TRANSACAO_ENUM AS ENUM ('c', 'd');
+
 -- Cria a procedure para buscar o extrato do cliente
 CREATE OR REPLACE FUNCTION api.get_extrato_cliente(clienteid INTEGER)
 RETURNS TABLE (
@@ -48,6 +51,28 @@ BEGIN
         END IF;
 END;
 $$ LANGUAGE plpgsql IMMUTABLE;
+
+
+-- Cria a procedure para realizar uma transação
+CREATE OR REPLACE FUNCTION api.realizar_transacao(clienteid INTEGER, valor INTEGER, tipo TIPO_TRANSACAO_ENUM, descricao VARCHAR(10))
+RETURNS TABLE (
+    limite INTEGER,
+    saldo INTEGER
+) AS $$
+
+DECLARE
+    saldo_atual INTEGER;
+    limite_atual INTEGER;
+
+BEGIN
+
+-- retornar qualquer coisa, só para testar o endpoint da API
+
+return query select 1, 2;
+
+END;
+$$ LANGUAGE plpgsql;
+
 
 -- Permitir que a role web_anon execute operações de leitura na tabela clientes
 GRANT SELECT ON api.clientes TO web_anon;
