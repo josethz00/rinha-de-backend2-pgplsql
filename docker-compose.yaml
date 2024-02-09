@@ -24,9 +24,9 @@ services:
       - "8082:8080"
 
   nginx:
-    image: nginx:latest
+    image: openresty/openresty:alpine-fat
     volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx.conf:/usr/local/openresty/nginx/conf/nginx.conf
     depends_on:
       - api01
       - api02
