@@ -67,9 +67,16 @@ DECLARE
 
 BEGIN
 
--- retornar qualquer coisa, só para testar o endpoint da API
+    IF descricao_len > 10 OR descricao IS NULL THEN
+        RAISE 
+            sqlstate 'PGRST'
+            USING message = '{"code":"400","message":"descricao é obrigatória e deve ser <= 10" }'
+            detail = '{"status":400,"headers":{"X-Powered-By":"josethz00"}}';
+    END IF;
 
-return query select 1, 2;
+    -- retornar qualquer coisa, só para testar o endpoint da API
+
+    return query select 1, 2;
 
 END;
 $$ LANGUAGE plpgsql;
