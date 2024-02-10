@@ -120,8 +120,6 @@ $$ LANGUAGE plpgsql;
 CREATE OR REPLACE FUNCTION atualiza_saldo()
     RETURNS TRIGGER AS $$
 
-DECLARE
-    novo_saldo INTEGER;
 BEGIN
 
     IF NEW.balance < (NEW.limite * -1) THEN
