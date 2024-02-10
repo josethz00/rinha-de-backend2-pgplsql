@@ -63,14 +63,20 @@ RETURNS TABLE (
 DECLARE
     saldo_atual INTEGER;
     limite_atual INTEGER;
-    descricao_len INTEGER := length(descricao);
 
 BEGIN
 
-    IF descricao_len > 10 OR descricao IS NULL THEN
+    IF (
+            length(descricao) > 10 
+                OR 
+            descricao IS NULL
+                OR
+            descricao = ''
+        ) 
+    THEN
         RAISE 
             sqlstate 'PGRST'
-            USING message = '{"code":"400","message":"descricao é obrigatória e deve ser <= 10" }'
+            USING message = '{"code":"400","message":"descricao é obrigatória e deve ser <= 10" }',
             detail = '{"status":400,"headers":{"X-Powered-By":"josethz00"}}';
     END IF;
 
