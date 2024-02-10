@@ -84,7 +84,16 @@ BEGIN
             UPDATE clientes 
                 SET 
                     balance = balance + valor, 
-                    transacoes = jsonb_insert(transacoes, '{0}', jsonb_build_object('tipo', 'c', 'valor', valor, 'descricao', descricao, 'realizada_em', LOCALTIMESTAMP))
+                    transacoes = jsonb_insert(
+                        transacoes, 
+                        '{0}', 
+                        jsonb_build_object(
+                            'tipo', 'c',
+                            'valor', valor,
+                            'descricao', descricao,
+                            'realizada_em', LOCALTIMESTAMP
+                        )
+                    )
                 WHERE id = clienteid 
                 RETURNING balance, limite;
     ELSE
@@ -92,7 +101,16 @@ BEGIN
             UPDATE clientes 
                 SET 
                     balance = balance - valor, 
-                    transacoes = jsonb_insert(transacoes, '{0}', jsonb_build_object('tipo', 'c', 'valor', valor, 'descricao', descricao, 'realizada_em', LOCALTIMESTAMP))
+                    transacoes = jsonb_insert(
+                        transacoes, 
+                        '{0}', 
+                        jsonb_build_object(
+                            'tipo', 'c',
+                            'valor', valor,
+                            'descricao', descricao,
+                            'realizada_em', LOCALTIMESTAMP
+                        )
+                    )
                 WHERE id = clienteid 
                 RETURNING balance, limite;
     END IF;
