@@ -63,6 +63,7 @@ RETURNS TABLE (
 DECLARE
     saldo_atual INTEGER;
     limite_atual INTEGER;
+    descricao_len INTEGER := length(descricao);
 
 BEGIN
 
