@@ -13,10 +13,10 @@ GRANT USAGE ON SCHEMA api TO web_anon;
 -- Cria a tabela
 CREATE UNLOGGED TABLE IF NOT EXISTS clientes (
     id SERIAL PRIMARY KEY,
-    nome VARCHAR(256) NOT NULL,
-    limite INTEGER NOT NULL,
+    "name" VARCHAR(256) NOT NULL,
+    "limit" INTEGER NOT NULL,
     balance INTEGER DEFAULT 0,
-    transacoes JSONB DEFAULT '[]'::JSONB
+    transactions JSONB DEFAULT '[]'::JSONB
 );
 
 
@@ -32,17 +32,15 @@ RETURNS TABLE (
 BEGIN
     RETURN QUERY
         SELECT 
-            jsonb_agg(
-                jsonb_build_object(
-                    'total', c.balance,
-                    'data_extrato', now()::timestamp,
-                    'limite', c.limite
-                )
+            jsonb_build_object(
+                'total', c.balance,
+                'data_extrato', now()::timestamp,
+                'limite', c."limit"
             ),
-            c.transacoes
+            c.transactions
         FROM clientes c
         WHERE c.id = clienteid
-        GROUP BY c.transacoes;
+        GROUP BY c.transactions, c.balance, c."limit";
 
         IF NOT FOUND THEN
             RAISE 
@@ -57,8 +55,8 @@ $$ LANGUAGE plpgsql IMMUTABLE;
 -- Cria a procedure para realizar uma transação
 CREATE OR REPLACE FUNCTION api.realizar_transacao(clienteid INTEGER, valor INTEGER, tipo TIPO_TRANSACAO_ENUM, descricao VARCHAR(10))
 RETURNS TABLE (
-    saldo_atual INTEGER,
-    limite_atual INTEGER
+    limite INTEGER,
+    saldo INTEGER
 ) AS $$
 
 BEGIN
@@ -82,8 +80,8 @@ BEGIN
             UPDATE clientes 
                 SET 
                     balance = balance + valor, 
-                    transacoes = jsonb_insert(
-                        transacoes, 
+                    transactions = jsonb_insert(
+                        transactions, 
                         '{0}', 
                         jsonb_build_object(
                             'tipo', 'c',
@@ -93,14 +91,14 @@ BEGIN
                         )
                     )
                 WHERE id = clienteid 
-                RETURNING balance, limite;
+                RETURNING balance, "limit";
     ELSE
         RETURN QUERY
             UPDATE clientes 
                 SET 
                     balance = balance - valor, 
-                    transacoes = jsonb_insert(
-                        transacoes, 
+                    transactions = jsonb_insert(
+                        transactions, 
                         '{0}', 
                         jsonb_build_object(
                             'tipo', 'c',
@@ -110,7 +108,7 @@ BEGIN
                         )
                     )
                 WHERE id = clienteid 
-                RETURNING balance, limite;
+                RETURNING balance, "limit";
     END IF;
 
 END;
@@ -122,7 +120,7 @@ CREATE OR REPLACE FUNCTION atualiza_saldo()
 
 BEGIN
 
-    IF NEW.balance < (NEW.limite * -1) THEN
+    IF NEW.balance < (NEW."limit" * -1) THEN
         RAISE 
             sqlstate 'PGRST'
             USING message = '{"code":"422","message": "sem saldo"}',
@@ -136,7 +134,7 @@ $$ LANGUAGE plpgsql;
 
 
 CREATE TRIGGER dispara_check_saldo
-AFTER UPDATE ON api.clientes
+BEFORE UPDATE ON api.clientes
 FOR EACH ROW
 EXECUTE PROCEDURE atualiza_saldo();
 
@@ -148,7 +146,7 @@ GRANT INSERT ON api.clientes TO web_anon;
 -- Insert de dados iniciais
 DO $$
 BEGIN
-    INSERT INTO clientes (nome, limite)
+    INSERT INTO clientes ("name", "limit")
     VALUES
     ('pablo marcal', 1000 * 100),
     ('primo rico', 800 * 100),
