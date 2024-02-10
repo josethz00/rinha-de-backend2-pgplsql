@@ -56,13 +56,9 @@ $$ LANGUAGE plpgsql IMMUTABLE;
 -- Cria a procedure para realizar uma transação
 CREATE OR REPLACE FUNCTION api.realizar_transacao(clienteid INTEGER, valor INTEGER, tipo TIPO_TRANSACAO_ENUM, descricao VARCHAR(10))
 RETURNS TABLE (
-    limite INTEGER,
-    saldo INTEGER
+    saldo_atual INTEGER,
+    limite_atual INTEGER
 ) AS $$
-
-DECLARE
-    saldo_atual INTEGER;
-    limite_atual INTEGER;
 
 BEGIN
 
@@ -82,7 +78,24 @@ BEGIN
 
     -- retornar qualquer coisa, só para testar o endpoint da API
 
-    return query select 1, 2;
+    
+    if tipo = 'c' THEN
+        RETURN QUERY
+            UPDATE clientes 
+                SET 
+                    balance = balance + valor, 
+                    transacoes = jsonb_set(transacoes, '{0}', jsonb_build_object('tipo', 'c', 'valor', valor, 'descricao', descricao, 'realizada_em', LOCALTIMESTAMP), true)
+                WHERE id = clienteid 
+                RETURNING balance, limite;
+    ELSE
+        RETURN QUERY
+            UPDATE clientes 
+                SET 
+                    balance = balance - valor, 
+                    transacoes = jsonb_set(transacoes, '{0}', jsonb_build_object('tipo', 'c', 'valor', valor, 'descricao', descricao, 'realizada_em', LOCALTIMESTAMP), true)
+                WHERE id = clienteid 
+                RETURNING balance, limite;
+    END IF;
 
 END;
 $$ LANGUAGE plpgsql;
@@ -90,6 +103,10 @@ $$ LANGUAGE plpgsql;
 
 -- Permitir que a role web_anon execute operações de leitura na tabela clientes
 GRANT SELECT ON api.clientes TO web_anon;
+GRANT UPDATE ON api.clientes TO web_anon;
+GRANT INSERT ON api.clientes TO web_anon;
+GRANT EXECUTE ON FUNCTION api.get_extrato_cliente(integer) TO web_anon;
+GRANT EXECUTE ON FUNCTION api.realizar_transacao(integer, integer, TIPO_TRANSACAO_ENUM, VARCHAR) TO web_anon;
 
 -- Insert de dados iniciais
 DO $$
