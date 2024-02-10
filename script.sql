@@ -38,7 +38,8 @@ BEGIN
                     'data_extrato', now()::timestamp,
                     'limite', c.limite
                 )
-            ), c.transacoes
+            ),
+            c.transacoes
         FROM clientes c
         WHERE c.id = clienteid
         GROUP BY c.transacoes;
@@ -115,6 +116,31 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+
+CREATE OR REPLACE FUNCTION atualiza_saldo()
+    RETURNS TRIGGER AS $$
+
+DECLARE
+    novo_saldo INTEGER;
+BEGIN
+
+    IF NEW.balance < (NEW.limite * -1) THEN
+        RAISE 
+            sqlstate 'PGRST'
+            USING message = '{"code":"422","message": "sem saldo"}',
+            detail = '{"status":422,"headers":{"X-Powered-By":"josethz00"}}';
+    END IF;
+
+    RETURN NEW;
+
+END;
+$$ LANGUAGE plpgsql;
+
+
+CREATE TRIGGER dispara_check_saldo
+AFTER UPDATE ON api.clientes
+FOR EACH ROW
+EXECUTE PROCEDURE atualiza_saldo();
 
 -- Permitir que a role web_anon execute operações de leitura na tabela clientes
 GRANT SELECT ON api.clientes TO web_anon;
