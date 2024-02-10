@@ -84,7 +84,7 @@ BEGIN
             UPDATE clientes 
                 SET 
                     balance = balance + valor, 
-                    transacoes = jsonb_set(transacoes, '{0}', jsonb_build_object('tipo', 'c', 'valor', valor, 'descricao', descricao, 'realizada_em', LOCALTIMESTAMP), true)
+                    transacoes = jsonb_insert(transacoes, '{0}', jsonb_build_object('tipo', 'c', 'valor', valor, 'descricao', descricao, 'realizada_em', LOCALTIMESTAMP))
                 WHERE id = clienteid 
                 RETURNING balance, limite;
     ELSE
@@ -92,7 +92,7 @@ BEGIN
             UPDATE clientes 
                 SET 
                     balance = balance - valor, 
-                    transacoes = jsonb_set(transacoes, '{0}', jsonb_build_object('tipo', 'c', 'valor', valor, 'descricao', descricao, 'realizada_em', LOCALTIMESTAMP), true)
+                    transacoes = jsonb_insert(transacoes, '{0}', jsonb_build_object('tipo', 'c', 'valor', valor, 'descricao', descricao, 'realizada_em', LOCALTIMESTAMP))
                 WHERE id = clienteid 
                 RETURNING balance, limite;
     END IF;
@@ -105,8 +105,6 @@ $$ LANGUAGE plpgsql;
 GRANT SELECT ON api.clientes TO web_anon;
 GRANT UPDATE ON api.clientes TO web_anon;
 GRANT INSERT ON api.clientes TO web_anon;
-GRANT EXECUTE ON FUNCTION api.get_extrato_cliente(integer) TO web_anon;
-GRANT EXECUTE ON FUNCTION api.realizar_transacao(integer, integer, TIPO_TRANSACAO_ENUM, VARCHAR) TO web_anon;
 
 -- Insert de dados iniciais
 DO $$
