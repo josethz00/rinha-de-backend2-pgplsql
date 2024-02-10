@@ -75,9 +75,6 @@ BEGIN
             USING message = '{"code":"400","message":"descricao é obrigatória e deve ser <= 10" }',
             detail = '{"status":400,"headers":{"X-Powered-By":"josethz00"}}';
     END IF;
-
-    -- retornar qualquer coisa, só para testar o endpoint da API
-
     
     if tipo = 'c' THEN
         RETURN QUERY
