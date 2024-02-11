@@ -16,7 +16,7 @@ CREATE UNLOGGED TABLE IF NOT EXISTS clientes (
     "name" VARCHAR(256) NOT NULL,
     "limit" INTEGER NOT NULL,
     balance INTEGER DEFAULT 0,
-    transactions JSONB DEFAULT '[]'::JSONB
+    transactions JSON DEFAULT '[]'::JSONB
 );
 
 
@@ -25,22 +25,30 @@ CREATE TYPE TIPO_TRANSACAO_ENUM AS ENUM ('c', 'd');
 -- Cria a procedure para buscar o extrato do cliente
 CREATE OR REPLACE FUNCTION api.get_extrato_cliente(clienteid INTEGER)
 RETURNS TABLE (
-    saldo JSONB,
-    ultimas_transacoes JSONB
+    saldo JSON,
+    ultimas_transacoes JSON
 ) AS $$
 
 BEGIN
     RETURN QUERY
         SELECT 
-            jsonb_build_object(
+            json_build_object(
                 'total', c.balance,
                 'data_extrato', now()::timestamp,
                 'limite', c."limit"
-            ),
-            c.transactions
+            ) AS saldo,
+            COALESCE(json_agg(
+                json_build_object(
+                    'valor', (t->>'valor')::INTEGER,
+                    'tipo', t->>'tipo',
+                    'descricao', t->>'descricao',
+                    'realizada_em', t->>'realizada_em'
+                )
+            ) FILTER (WHERE t IS NOT NULL), '[]'::json) AS ultimas_transacoes
         FROM clientes c
+        LEFT JOIN jsonb_array_elements(c.transactions::jsonb) t ON true
         WHERE c.id = clienteid
-        GROUP BY c.transactions, c.balance, c."limit";
+        GROUP BY c.balance, c."limit";
 
         IF NOT FOUND THEN
             RAISE 
@@ -80,16 +88,12 @@ BEGIN
             UPDATE clientes 
                 SET 
                     balance = balance + valor, 
-                    transactions = jsonb_insert(
-                        transactions, 
-                        '{0}', 
-                        jsonb_build_object(
-                            'tipo', 'c',
-                            'valor', valor,
-                            'descricao', descricao,
-                            'realizada_em', LOCALTIMESTAMP
-                        )
-                    )
+                    transactions = jsonb_insert(transactions::jsonb, '{0}', json_build_object(
+                        'valor', valor,
+                        'tipo', tipo,
+                        'descricao', descricao,
+                        'realizada_em', LOCALTIMESTAMP
+                    )::jsonb)::json
                 WHERE id = clienteid 
                 RETURNING balance, "limit";
     ELSE
@@ -97,16 +101,12 @@ BEGIN
             UPDATE clientes 
                 SET 
                     balance = balance - valor, 
-                    transactions = jsonb_insert(
-                        transactions, 
-                        '{0}', 
-                        jsonb_build_object(
-                            'tipo', 'c',
-                            'valor', valor,
-                            'descricao', descricao,
-                            'realizada_em', LOCALTIMESTAMP
-                        )
-                    )
+                    transactions = jsonb_insert(transactions::jsonb, '{0}', json_build_object(
+                        'valor', valor,
+                        'tipo', tipo,
+                        'descricao', descricao,
+                        'realizada_em', LOCALTIMESTAMP
+                    )::jsonb)::json
                 WHERE id = clienteid 
                 RETURNING balance, "limit";
     END IF;
@@ -121,10 +121,9 @@ CREATE OR REPLACE FUNCTION atualiza_saldo()
 BEGIN
 
     IF NEW.balance < (NEW."limit" * -1) THEN
-        RAISE 
-            sqlstate 'PGRST'
-            USING message = '{"code":"422","message": "sem saldo"}',
-            detail = '{"status":422,"headers":{"X-Powered-By":"josethz00"}}';
+        RAISE sqlstate 'PGRST' USING
+            message = '{"code":"422","message":"Payment Required","details":"Quota exceeded","hint":"Upgrade your plan"}',
+            detail = '{"status":422,"headers":{"X-Powered-By":"Nerd Rage"}}';
     END IF;
 
     RETURN NEW;
