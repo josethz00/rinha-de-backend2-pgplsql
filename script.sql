@@ -96,6 +96,15 @@ BEGIN
                     )::jsonb)::json
                 WHERE id = clienteid 
                 RETURNING balance, "limit";
+
+                -- verifcar se o resultado é vazio (0 linhas) no caso de o update ter sido contra um cliente que não existe
+        IF NOT FOUND THEN
+            RAISE 
+                sqlstate 'PGRST'
+                USING message = '{"code":"404","message":"Cliente no existe"}', 
+                detail = '{"status":404,"headers":{"X-Powered-By":"josethz00"}}';
+        END IF;
+
     ELSE
         RETURN QUERY
             UPDATE clientes 
@@ -109,6 +118,16 @@ BEGIN
                     )::jsonb)::json
                 WHERE id = clienteid 
                 RETURNING balance, "limit";
+
+        -- verifcar se o resultado é vazio (0 linhas) no caso de o update ter sido contra um cliente que não existe
+        IF NOT FOUND THEN
+            RAISE 
+                sqlstate 'PGRST'
+                USING message = '{"code":"404","message":"Cliente no existe"}', 
+                detail = '{"status":404,"headers":{"X-Powered-By":"josethz00"}}';
+        END IF;
+
+
     END IF;
 
 END;
@@ -122,8 +141,8 @@ BEGIN
 
     IF NEW.balance < (NEW."limit" * -1) THEN
         RAISE sqlstate 'PGRST' USING
-            message = '{"code":"422","message":"Payment Required","details":"Quota exceeded","hint":"Upgrade your plan"}',
-            detail = '{"status":422,"headers":{"X-Powered-By":"Nerd Rage"}}';
+            message = '{"code":"422","message":"sem dinhero"}',
+            detail = '{"status":422,"headers":{"X-Powered-By":"josethz00"}}';
     END IF;
 
     RETURN NEW;
